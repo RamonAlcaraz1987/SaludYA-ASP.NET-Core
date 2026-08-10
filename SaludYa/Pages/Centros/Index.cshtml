@@ -1,0 +1,197 @@
+@page
+@model SaludYa.Pages.Centros.IndexModel
+@{
+    ViewData["Title"] = "Centros de salud";
+}
+
+<h2 class="mb-4">🏥 Centros de salud</h2>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card mb-4">
+            <div class="card-header">Nuevo centro</div>
+            <div class="card-body">
+                <form method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input class="form-control" asp-for="NuevoCentro.Nombre" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <input class="form-control" asp-for="NuevoCentro.Direccion" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" asp-for="NuevoCentro.Email" />
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Latitud</label>
+                            <input type="number" step="any" class="form-control" asp-for="NuevoCentro.Latitud"
+                                   placeholder="Ej: -33.295231" />
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Longitud</label>
+                            <input type="number" step="any" class="form-control" asp-for="NuevoCentro.Longitud"
+                                   placeholder="Ej: -66.335835" />
+                        </div>
+                    </div>
+                    <p class="form-text">
+                        Buscá la dirección en <a href="https://maps.google.com" target="_blank">Google Maps</a>,
+                        clic derecho sobre el pin y copiá las coordenadas.
+                    </p>
+                    <button type="submit" class="btn btn-primary">Crear centro</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="col-md-7">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+            <button type="button" id="toggleInactivosCentros" class="btn btn-sm">👁 Mostrar desactivados</button>
+        </div>
+        <div class="mb-3">
+            <input type="text" class="form-control" id="buscarCentro" placeholder="🔍 Buscar centro por nombre o dirección...">
+        </div>
+
+        @foreach (var c in Model.Centros)
+        {
+            var collapseId = $"colapso-centro-det-{c.Id}";
+
+            <div class="card mb-2 grupo-centro fila-item @(c.Activo ? "" : "es-inactivo")" data-buscar="@c.Nombre @c.Direccion">
+                <div class="card-header d-flex justify-content-between align-items-center @(c.Activo ? "" : "text-muted")"
+                     style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#@collapseId">
+                    <span class="fw-bold">🏥 @c.Nombre</span>
+                    @if (c.Activo)
+                    {
+                        <span class="badge bg-success">Activo</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">Inactivo</span>
+                    }
+                </div>
+                <div class="collapse" id="@collapseId">
+                    <div class="card-body">
+                        <p class="mb-1"><strong>Dirección:</strong> @c.Direccion</p>
+                        <p class="mb-1"><strong>Teléfono:</strong> @c.Telefono</p>
+                        <p class="mb-2"><strong>Email:</strong> @c.Email</p>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                data-bs-toggle="modal" data-bs-target="#modalEditarCentro"
+                                data-id="@c.Id" data-nombre="@c.Nombre" data-direccion="@c.Direccion"
+                                data-telefono="@c.Telefono" data-email="@c.Email"
+                                data-latitud="@(c.Latitud?.ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                                data-longitud="@(c.Longitud?.ToString(System.Globalization.CultureInfo.InvariantCulture))">
+                            Editar
+                        </button>
+
+                        <form method="post" asp-page-handler="CambiarEstado" class="d-inline form-confirmar"
+                              data-titulo="@(c.Activo ? "Desactivar centro" : "Activar centro")"
+                              data-mensaje="@(c.Activo
+                                  ? $"¿Confirmás que querés desactivar el centro <strong>{c.Nombre}</strong>? Los especialistas, cronogramas y vacunatorio asociados dejarán de mostrarse a los ciudadanos."
+                                  : $"¿Confirmás que querés activar el centro <strong>{c.Nombre}</strong>?")"
+                              data-boton="@(c.Activo ? "Sí, desactivar" : "Activar")"
+                              data-clase-boton="@(c.Activo ? "btn-danger" : "btn-success")">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@c.Id" />
+                            @if (c.Activo)
+                            {
+                                <input type="hidden" name="activo" value="false" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Desactivar</button>
+                            }
+                            else
+                            {
+                                <input type="hidden" name="activo" value="true" />
+                                <button type="submit" class="btn btn-sm btn-outline-success">Activar</button>
+                            }
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal Editar Centro -->
+<div class="modal fade" id="modalEditarCentro" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Editar">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar centro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="EditarId" id="editarId" />
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input class="form-control" name="EditarNombre" id="editarNombre" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <input class="form-control" name="EditarDireccion" id="editarDireccion" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <input class="form-control" name="EditarTelefono" id="editarTelefono" />
+                    </div>
+                   <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="EditarEmail" id="editarEmail" />
+                    </div>
+                   <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Latitud</label>
+                            <input type="number" step="any" class="form-control" name="EditarLatitud" id="editarLatitud"
+                                   placeholder="Ej: -33.295231" />
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Longitud</label>
+                            <input type="number" step="any" class="form-control" name="EditarLongitud" id="editarLongitud"
+                                   placeholder="Ej: -66.335835" />
+                        </div>
+                    </div>
+                    <p class="form-text">
+                        Buscá la dirección en <a href="https://maps.google.com" target="_blank">Google Maps</a>,
+                        clic derecho sobre el pin y copiá las coordenadas.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('modalEditarCentro').addEventListener('show.bs.modal', function (event) {
+        var btn = event.relatedTarget;
+        document.getElementById('editarId').value = btn.getAttribute('data-id');
+        document.getElementById('editarNombre').value = btn.getAttribute('data-nombre');
+        document.getElementById('editarDireccion').value = btn.getAttribute('data-direccion');
+        document.getElementById('editarTelefono').value = btn.getAttribute('data-telefono') || '';
+        document.getElementById('editarEmail').value = btn.getAttribute('data-email') || '';
+        document.getElementById('editarLatitud').value = btn.getAttribute('data-latitud') || '';
+        document.getElementById('editarLongitud').value = btn.getAttribute('data-longitud') || '';
+    });
+
+        habilitarBusquedaConCajones('buscarCentro', '.grupo-centro', '.fila-item');
+        habilitarToggleInactivos('toggleInactivosCentros', '.es-inactivo');
+    </script>
+}

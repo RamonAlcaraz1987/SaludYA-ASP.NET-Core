@@ -1,0 +1,40 @@
+@page
+@model SaludYa.Pages.Public.IndexModel
+@{
+    ViewData["Title"] = "Centros de salud";
+    Layout = "_LayoutPublico";
+}
+
+<h2 class="mb-1">Centros de salud</h2>
+<p class="text-muted mb-4">Ciudad de San Luis — información actualizada por cada centro</p>
+
+<div class="row g-3">
+    @foreach (var centro in Model.Centros)
+    {
+        <div class="col-md-4">
+            <a href="/Public/Centro/@centro.Id" class="text-decoration-none">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-success">🏥 @centro.Nombre</h5>
+                        <p class="text-muted small mb-1">📍 @centro.Direccion</p>
+                        @if (!string.IsNullOrEmpty(centro.Telefono))
+                        {
+                            <p class="text-muted small mb-0">📞 @centro.Telefono</p>
+                        }
+                        @if (Model.NovedadesHoy.ContainsKey(centro.Id) && Model.NovedadesHoy[centro.Id] > 0)
+                        {
+                            <div class="mt-2">
+                                <span class="badge bg-warning text-dark">
+                                    ⚠ @Model.NovedadesHoy[centro.Id] novedad(es) hoy
+                                </span>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <small class="text-success">Ver especialistas y horarios →</small>
+                    </div>
+                </div>
+            </a>
+        </div>
+    }
+</div>

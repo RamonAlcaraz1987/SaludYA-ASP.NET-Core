@@ -1,0 +1,87 @@
+@page "{id:int?}"
+@model SaludYa.Pages.Public.VacunatorioPublicoModel
+@{
+    ViewData["Title"] = "Vacunatorio";
+    Layout = "_LayoutPublico";
+}
+
+<h2 class="mb-1">💉 Vacunatorio</h2>
+<p class="text-muted mb-4">Consultá la disponibilidad de vacunas en cada centro de salud</p>
+
+<div class="mb-4">
+    <label class="form-label fw-bold">Seleccioná un centro:</label>
+    <div class="row g-2">
+        @foreach (var centro in Model.Centros)
+        {
+            <div class="col-md-4">
+                <a href="/Public/Vacunatorio/@centro.Id"
+                   class="btn w-100 @(Model.CentroSeleccionadoId == centro.Id ? "btn-success" : "btn-outline-success")">
+                    🏥 @centro.Nombre
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@if (Model.CentroSeleccionado != null)
+{
+    <hr />
+    <h5 class="mb-1">@Model.CentroSeleccionado.Nombre</h5>
+
+    @if (Model.Vacunatorio != null)
+    {
+        <p class="text-muted small mb-3">
+            Horario: @Model.Vacunatorio.HoraApertura.ToString().Substring(0,5)
+            a @Model.Vacunatorio.HoraCierre.ToString().Substring(0,5)
+            — Días: @Model.Vacunatorio.DiasAtencion.Replace(",", ", ")
+        </p>
+
+        @if (!Model.Vacunas.Any())
+        {
+            <p class="text-muted">Sin información de vacunas cargada para este centro.</p>
+        }
+        else
+        {
+            <div class="row g-2">
+                @foreach (var v in Model.Vacunas)
+                {
+                    <div class="col-md-4">
+                        <div class="card h-100 @(v.Disponible ? "border-success" : "border-secondary")">
+                            <div class="card-body py-2 px-3">
+                                <p class="mb-0 fw-bold small">@v.NombreVacuna</p>
+                                <p class="mb-0 text-muted small">@v.FranjaEtaria</p>
+                                <p class="mb-0 small text-muted">
+                                    @(v.TipoVacuna == "calendario_fijo" ? "Calendario oficial" : "Campaña estacional")
+                                </p>
+                                @if (v.Disponible)
+                                {
+                                    <span class="badge bg-success mt-1">✓ Disponible</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary mt-1">✗ No disponible</span>
+                                }
+                                @if (!string.IsNullOrEmpty(v.Observaciones))
+                                {
+                                    <p class="small text-danger mt-1 mb-0">@v.Observaciones</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            Este centro no tiene vacunatorio configurado.
+        </div>
+    }
+}
+else
+{
+    <div class="alert alert-info">
+        Seleccioná un centro arriba para ver las vacunas disponibles.
+    </div>
+}

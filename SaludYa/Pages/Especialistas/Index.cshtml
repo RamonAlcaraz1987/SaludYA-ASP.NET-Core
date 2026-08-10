@@ -1,0 +1,174 @@
+@page
+@model SaludYa.Pages.Especialistas.IndexModel
+@{
+    ViewData["Title"] = "Especialistas";
+}
+
+<h2 class="mb-4">👨‍⚕️ Gestión de especialistas</h2>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">Nuevo especialista</div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="Crear">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label">Nombre completo</label>
+                        <input class="form-control" asp-for="Nombre" required placeholder="Ej: Dra. Laura Fernández" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Especialidad</label>
+                        <input class="form-control" asp-for="Especialidad" required placeholder="Ej: Pediatría" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Centro asignado</label>
+                        <select class="form-select" asp-for="CentroIdNuevo" required>
+                            <option value="">— Seleccionar —</option>
+                            @foreach (var c in Model.Centros)
+                            {
+                                <option value="@c.Id">@c.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Agregar especialista</button>
+                </form>
+            </div>
+        </div>
+    </div><div class="col-md-8">
+       <div class="d-flex justify-content-between align-items-center mb-2">
+            <button type="button" id="toggleInactivosEspecialistas" class="btn btn-sm">👁 Mostrar desactivados</button>
+        </div>
+        <div class="mb-3">
+            <input type="text" class="form-control" id="buscarEspecialista" placeholder="🔍 Buscar especialista, especialidad o centro...">
+        </div>
+
+        @foreach (var centro in Model.Centros)
+        {
+            var especialistas = Model.TodosLosEspecialistas.Where(e => e.CentroId == centro.Id).ToList();
+            var collapseId = $"colapso-centro-{centro.Id}";
+
+            <div class="card mb-3 grupo-centro" data-buscar="@centro.Nombre">
+                <div class="card-header fw-bold" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#@collapseId">
+                    🏥 @centro.Nombre <span class="text-muted small">(@especialistas.Count)</span>
+                </div>
+                <div class="collapse" id="@collapseId">
+                    <div class="card-body p-0">
+                        @if (!especialistas.Any())
+                        {
+                            <p class="text-muted p-3 mb-0">Sin especialistas asignados</p>
+                        }
+                        else
+                        {
+                            <table class="table table-striped mb-0 small">
+                                <thead>
+                                    <tr><th>Nombre</th><th>Especialidad</th><th>Activo</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var e in especialistas)
+                                    {
+                                        <tr class="fila-item @(e.Activo ? "" : "text-muted es-inactivo")" data-buscar="@e.Nombre @e.Especialidad">
+                                            <td>@e.Nombre</td>
+                                            <td>@e.Especialidad</td>
+                                            <td>
+                                                @if (e.Activo)
+                                                {
+                                                    <span class="badge bg-success">Activo</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Inactivo</span>
+                                                }
+                                            </td>
+                                            <td class="text-nowrap">
+                                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                                        data-bs-toggle="modal" data-bs-target="#modalEditarEspecialista"
+                                                        data-id="@e.Id" data-nombre="@e.Nombre" data-especialidad="@e.Especialidad">
+                                                    Editar
+                                                </button>
+                                                <form method="post" asp-page-handler="CambiarEstado" class="d-inline form-confirmar"
+                                                      data-titulo="@(e.Activo ? "Desactivar especialista" : "Activar especialista")"
+                                                      data-mensaje="@(e.Activo
+                                                          ? $"¿Confirmás que querés desactivar a <strong>{e.Nombre}</strong>?"
+                                                          : $"¿Confirmás que querés activar a <strong>{e.Nombre}</strong>?")"
+                                                      data-boton="@(e.Activo ? "Desactivar" : "Activar")"
+                                                      data-clase-boton="@(e.Activo ? "btn-danger" : "btn-success")">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@e.Id" />
+                                                    @if (e.Activo)
+                                                    {
+                                                        <input type="hidden" name="activo" value="false" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">Desactivar</button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <input type="hidden" name="activo" value="true" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-success">Activar</button>
+                                                    }
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal Editar Especialista -->
+<div class="modal fade" id="modalEditarEspecialista" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Editar">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar especialista</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="EditarId" id="eeId" />
+                    <div class="mb-3">
+                        <label class="form-label">Nombre completo</label>
+                        <input class="form-control" name="EditarNombre" id="eeNombre" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Especialidad</label>
+                        <input class="form-control" name="EditarEspecialidad" id="eeEspecialidad" required />
+                    </div>
+                    <div class="form-text">Para cambiar de centro, usá "Trasladar especialista".</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('modalEditarEspecialista').addEventListener('show.bs.modal', function (event) {
+            var btn = event.relatedTarget;
+            document.getElementById('eeId').value = btn.getAttribute('data-id');
+            document.getElementById('eeNombre').value = btn.getAttribute('data-nombre');
+            document.getElementById('eeEspecialidad').value = btn.getAttribute('data-especialidad');
+        });
+
+        habilitarBusquedaConCajones('buscarEspecialista', '.grupo-centro', '.fila-item');
+         habilitarToggleInactivos('toggleInactivosEspecialistas', '.es-inactivo');
+    </script>
+}

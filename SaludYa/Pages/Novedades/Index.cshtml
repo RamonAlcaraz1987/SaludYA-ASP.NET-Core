@@ -1,0 +1,139 @@
+@page
+@model SaludYa.Pages.Novedades.IndexModel
+@{
+    ViewData["Title"] = "Novedades del día";
+}
+
+<h2 class="mb-4">⚠ Novedades del día</h2>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card mb-4">
+            <div class="card-header">Registrar novedad</div>
+            <div class="card-body">
+                <form method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label">Especialista</label>
+                        <select class="form-select" asp-for="EspecialistaId" required>
+                            <option value="">— Seleccionar —</option>
+                            @foreach (var e in Model.Especialistas)
+                            {
+                                <option value="@e.Id">@e.Nombre (@e.Especialidad)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Fecha</label>
+                        <input type="date" class="form-control" asp-for="Fecha" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de novedad</label>
+                        <select class="form-select" asp-for="TipoNovedad" id="tipoNovedad" onchange="mostrarCampos()" required>
+                            <option value="ausencia">Ausencia</option>
+                            <option value="cambio_horario">Cambio de horario</option>
+                            <option value="reduccion_turnos">Reducción de turnos</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="campoHorarioNuevo">
+                        <label class="form-label">Nuevo horario de hoy</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <input type="time" class="form-control" asp-for="HoraNuevaInicio" />
+                            </div>
+                            <div class="col-6">
+                                <input type="time" class="form-control" asp-for="HoraNuevaFin" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="campoLugarNuevo">
+                        <label class="form-label">Lugar de atención (si se traslada)</label>
+                        <input class="form-control" asp-for="LugarNuevo" placeholder="Ej: Consultorio 3, planta alta" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        <textarea class="form-control" asp-for="Descripcion" rows="2"
+                                  placeholder="Ej: El médico no asistirá por motivos personales"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning">Registrar novedad</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">Novedades de hoy</div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Especialista</th>
+                            <th>Tipo</th>
+                            <th>Detalle</th>
+                            <th>Hora registro</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var n in Model.NovedadesHoy)
+                        {
+                            <tr>
+                                <td>@n.NombreEspecialista <br /><small class="text-muted">@n.Especialidad</small></td>
+                                <td>
+                                    @switch (n.TipoNovedad)
+                                    {
+                                        case "ausencia":
+                                            <span class="badge bg-danger">Ausencia</span>
+                                            break;
+                                        case "cambio_horario":
+                                            <span class="badge bg-warning text-dark">Cambio horario</span>
+                                            break;
+                                        case "reduccion_turnos":
+                                            <span class="badge bg-info text-dark">Reducción turnos</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-secondary">Otro</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="small">
+                                    @n.Descripcion
+                                    @if (n.HoraNuevaInicio.HasValue && n.HoraNuevaFin.HasValue)
+                                    {
+                                        <br /><strong>Nuevo horario:</strong>
+                                        @($"{n.HoraNuevaInicio.Value:hh\\:mm} - {n.HoraNuevaFin.Value:hh\\:mm}")
+                                    }
+                                    @if (!string.IsNullOrEmpty(n.LugarNuevo))
+                                    {
+                                        <br /><strong>Lugar:</strong> @n.LugarNuevo
+                                    }
+                                </td>
+                                <td class="small text-muted">@n.FechaRegistro.ToString("HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function mostrarCampos() {
+            var tipo = document.getElementById('tipoNovedad').value;
+            document.getElementById('campoHorarioNuevo').style.display =
+                (tipo === 'cambio_horario') ? 'block' : 'none';
+            document.getElementById('campoLugarNuevo').style.display =
+                (tipo === 'cambio_horario' || tipo === 'otro') ? 'block' : 'none';
+        }
+        document.addEventListener('DOMContentLoaded', mostrarCampos);
+    </script>
+}

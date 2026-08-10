@@ -1,0 +1,159 @@
+@page
+@model SaludYa.Pages.Public.BuscarModel
+@{
+    ViewData["Title"] = "Buscar especialidad";
+    Layout = "_LayoutPublico";
+}
+
+<h2 class="mb-1">Buscar especialidad</h2>
+<p class="text-muted mb-4">Encontrá qué centros ofrecen la especialidad que necesitás</p>
+
+<div class="mb-4">
+    <input type="text" id="etBuscar" class="form-control form-control-lg"
+           placeholder="Escribí la especialidad (ej: pediatría, odontología...)"
+           autofocus />
+</div>
+
+<!-- Card del más cercano — se llena con JS -->
+<div id="cardCercano" class="alert alert-success d-none mb-3">
+    <strong>✅ El más cercano a vos</strong>
+    <p id="txtCercanoEsp" class="mb-0 mt-1 fw-bold"></p>
+    <p id="txtCercanoEspecialidad" class="mb-0 small text-muted"></p>
+    <p id="txtCercanoCentro" class="mb-0 mt-1"></p>
+    <p id="txtCercanoDir" class="mb-0 small text-muted"></p>
+    <p id="txtCercanoDistancia" class="mb-0 mt-1 text-primary fw-bold"></p>
+    <a id="btnCercanoLink" href="#" class="btn btn-outline-success btn-sm mt-2">
+        Ver detalle del centro →
+    </a>
+</div>
+
+<div id="sinResultados" class="text-muted d-none">Sin resultados para esa especialidad.</div>
+
+<div id="listaResultados" class="row g-3"></div>
+
+@section Scripts {
+<script>
+    // Coordenadas de los centros (las mismas que en la BD)
+    const centrosCoords = {};
+
+    // Ubicación del usuario
+    let userLat = null, userLon = null;
+
+    // Pedir ubicación al cargar
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            userLat = pos.coords.latitude;
+            userLon = pos.coords.longitude;
+        });
+    }
+
+    // Cargar coordenadas de centros desde la API
+    fetch('/api/CentroSaludApi')
+        .then(r => r.json())
+        .then(centros => {
+            centros.forEach(c => {
+                if (c.latitud && c.longitud) {
+                    centrosCoords[c.id] = { lat: c.latitud, lon: c.longitud, nombre: c.nombre, direccion: c.direccion };
+                }
+            });
+        });
+
+    // Haversine
+    function distanciaKm(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 +
+                  Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function formatearDist(km) {
+        return km < 1 ? Math.round(km * 1000) + ' m' : km.toFixed(1) + ' km';
+    }
+
+    let debounce = null;
+    document.getElementById('etBuscar').addEventListener('input', function () {
+        clearTimeout(debounce);
+        const q = this.value.trim();
+        if (q.length < 2) {
+            document.getElementById('listaResultados').innerHTML = '';
+            document.getElementById('sinResultados').classList.add('d-none');
+            document.getElementById('cardCercano').classList.add('d-none');
+            return;
+        }
+        debounce = setTimeout(() => buscar(q), 300);
+    });
+
+    function buscar(q) {
+        fetch('/api/EspecialistaApi/buscarespecialidad?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(lista => {
+                const contenedor = document.getElementById('listaResultados');
+                const sinRes = document.getElementById('sinResultados');
+                contenedor.innerHTML = '';
+
+                if (!lista || lista.length === 0) {
+                    sinRes.classList.remove('d-none');
+                    document.getElementById('cardCercano').classList.add('d-none');
+                    return;
+                }
+                sinRes.classList.add('d-none');
+
+                // Calcular distancia si tenemos ubicación
+                let masCercano = null;
+                let menorDist = Infinity;
+
+                lista.forEach(esp => {
+                    let distStr = '';
+                    if (userLat !== null && centrosCoords[esp.centroId]) {
+                        const c = centrosCoords[esp.centroId];
+                        const d = distanciaKm(userLat, userLon, c.lat, c.lon);
+                        esp._dist = d;
+                        distStr = '📍 ' + formatearDist(d) + ' de tu ubicación';
+                        if (d < menorDist) {
+                            menorDist = d;
+                            masCercano = esp;
+                        }
+                    }
+
+                    const col = document.createElement('div');
+                    col.className = 'col-md-4';
+                    col.innerHTML = `
+                        <div class="card shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="mb-0">${esp.nombre}</h6>
+                                <p class="text-muted small mb-1">${esp.especialidad}</p>
+                                ${distStr ? `<p class="small text-primary mb-0">${distStr}</p>` : ''}
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <a href="/Public/Centro/${esp.centroId}" class="btn btn-sm btn-outline-success w-100">
+                                    Ver centro →
+                                </a>
+                            </div>
+                        </div>`;
+                    contenedor.appendChild(col);
+                });
+
+                // Mostrar card del más cercano
+                if (masCercano && centrosCoords[masCercano.centroId]) {
+                    const c = centrosCoords[masCercano.centroId];
+                    document.getElementById('txtCercanoEsp').textContent = masCercano.nombre;
+                    document.getElementById('txtCercanoEspecialidad').textContent = masCercano.especialidad;
+                    document.getElementById('txtCercanoCentro').textContent = '🏥 ' + c.nombre;
+                    document.getElementById('txtCercanoDir').textContent = c.direccion;
+                    document.getElementById('txtCercanoDistancia').textContent =
+                        '📍 ' + formatearDist(menorDist) + ' de tu ubicación';
+                    document.getElementById('btnCercanoLink').href = '/Public/Centro/' + masCercano.centroId;
+                    document.getElementById('cardCercano').classList.remove('d-none');
+                } else {
+                    document.getElementById('cardCercano').classList.add('d-none');
+                }
+            })
+            .catch(() => {
+                document.getElementById('sinResultados').textContent = 'Error al conectar con la API.';
+                document.getElementById('sinResultados').classList.remove('d-none');
+            });
+    }
+</script>
+}

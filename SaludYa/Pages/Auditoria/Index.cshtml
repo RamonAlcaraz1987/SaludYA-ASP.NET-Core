@@ -1,0 +1,73 @@
+@page
+@model SaludYa.Pages.Auditoria.IndexModel
+@{
+    ViewData["Title"] = "Auditoría";
+}
+
+<h2 class="mb-4">📋 Auditoría — últimos cambios</h2>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-auto">
+        <label class="form-label mb-0">Filtrar por fecha</label>
+        <input type="date" class="form-control" name="Fecha"
+               value="@(Model.Fecha?.ToString("yyyy-MM-dd"))"
+               onchange="this.form.submit()" />
+    </div>
+    @if (Model.Fecha.HasValue)
+    {
+        <div class="col-auto">
+            <a asp-page="/Auditoria/Index" class="btn btn-outline-secondary">Ver últimos 200 (todas las fechas)</a>
+        </div>
+    }
+</form>
+
+@if (Model.Fecha.HasValue && !Model.Registros.Any())
+{
+    <div class="alert alert-info">No hay registros de auditoría para el @Model.Fecha.Value.ToString("dd/MM/yyyy").</div>
+}
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0 small">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Tabla</th>
+                    <th>Acción</th>
+                    <th>Detalle</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var a in Model.Registros)
+                {
+                    <tr>
+                        <td class="text-nowrap">@a.TimestampOp.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@a.NombreUsuario</td>
+                        <td>@a.TablaAfectada.Replace("_", " ")</td>
+                        <td>
+                            @switch (a.Accion)
+                            {
+                                case "INSERT":
+                                    <span class="badge bg-success">Alta</span>
+                                    break;
+                                case "UPDATE":
+                                    <span class="badge bg-warning text-dark">Modificación</span>
+                                    break;
+                                case "DELETE":
+                                    <span class="badge bg-danger">Baja</span>
+                                    break;
+                                default:
+                                    <span class="badge bg-secondary">@a.Accion</span>
+                                    break;
+                            }
+                        </td>
+                        <td>@Model.FormatearDetalle(a.ValNuevo, a.TablaAfectada)</td>
+                        <td class="text-muted">@a.IpOrigen</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

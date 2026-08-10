@@ -1,0 +1,242 @@
+@page
+@model SaludYa.Pages.Cronograma.IndexModel
+@{
+    ViewData["Title"] = "Cronograma";
+}
+
+<h2 class="mb-4">🗓 Cronograma de especialistas</h2>
+
+@if (Model.TieneCronogramaVigente)
+{
+    <div class="alert alert-info">
+        ℹ Hay cronogramas vigentes hasta el <strong>@Model.VencimientoActual?.ToString("dd/MM/yyyy")</strong>.
+        Podés cargar el próximo período cuando falten 7 días o menos para que venza.
+        La fecha de inicio se calculará automáticamente como el día siguiente al vencimiento.
+    </div>
+}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">Cargar nuevo período</div>
+            <div class="card-body">
+                <form method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label">Especialista</label>
+                        <select class="form-select" asp-for="EspecialistaId" required>
+                            <option value="">— Seleccionar —</option>
+                            @foreach (var e in Model.Especialistas)
+                            {
+                                <option value="@e.Id">@e.Nombre (@e.Especialidad)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de período</label>
+                        <select class="form-select" asp-for="TipoPeriodo" id="tipoPeriodo" onchange="actualizarFechaFin()">
+                            <option value="mensual">Mensual (1 mes)</option>
+                            <option value="bimestral">Bimestral (2 meses)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Fecha de inicio</label>
+                        <input type="date" class="form-control" asp-for="FechaInicio"
+                               id="fechaInicio"
+                               min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                               value="@Model.FechaInicioSugerida.ToString("yyyy-MM-dd")"
+                               onchange="actualizarFechaFin()" required />
+                        <div class="form-text">Fecha en que comienza a atender el especialista en este período.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Fecha de fin (calculada automáticamente)</label>
+                        <input type="text" class="form-control bg-light" id="fechaFinMostrar"
+                               value="@Model.FechaFinSugerida.ToString("dd/MM/yyyy")" readonly />
+                        <div class="form-text">
+                            Mensual = 1 mes desde el inicio. Bimestral = 2 meses desde el inicio.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Turnos disponibles (total del período)</label>
+                        <input type="number" min="1" class="form-control" asp-for="TurnosDisponibles" required />
+                    </div>
+
+                    <hr />
+                    <h6>Días y horarios de atención</h6>
+                    <p class="text-muted small">Tildá los días que atiende y completá el horario.</p>
+
+                    @{
+                        var dias = new[] {
+                            ("lunes", "Lunes"), ("martes", "Martes"), ("miercoles", "Miércoles"),
+                            ("jueves", "Jueves"), ("viernes", "Viernes"), ("sabado", "Sábado")
+                        };
+                    }
+                    @foreach (var (valor, etiqueta) in dias)
+                    {
+                        <div class="row align-items-center mb-2">
+                            <div class="col-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox"
+                                           name="DiasSeleccionados" value="@valor" id="dia_@valor" />
+                                    <label class="form-check-label" for="dia_@valor">@etiqueta</label>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <input type="time" class="form-control form-control-sm" name="HoraInicio_@valor" />
+                            </div>
+                            <div class="col-1 text-center small">a</div>
+                            <div class="col-4">
+                                <input type="time" class="form-control form-control-sm" name="HoraFin_@valor" />
+                            </div>
+                        </div>
+                    }
+
+                    <hr />
+                    <h6>¿Cómo se obtienen los turnos?</h6>
+
+                    <div class="mb-3">
+                        <select class="form-select" asp-for="TipoTurno" id="tipoTurno" onchange="mostrarBloqueturno()">
+                            <option value="orden_llegada">Por orden de llegada</option>
+                            <option value="turno_previo">Turno previo</option>
+                        </select>
+                    </div>
+
+                    <div id="bloqueTurno">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" asp-for="TurnoMismoDia"
+                                   id="turnoMismoDia" onchange="mostrarDiaTurno()" />
+                            <label class="form-check-label" for="turnoMismoDia">
+                                Los turnos se sacan el mismo día de atención
+                            </label>
+                        </div>
+
+                        <div class="mb-3" id="diaTurnoContainer">
+                            <label class="form-label">Si no, ¿qué día se sacan los turnos?</label>
+                            <select class="form-select" asp-for="DiaTurno">
+                                <option value="">—</option>
+                                @foreach (var (valor, etiqueta) in dias)
+                                {
+                                    <option value="@valor">@etiqueta</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Desde</label>
+                                <input type="time" class="form-control" asp-for="HoraInicioTurno" />
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Hasta</label>
+                                <input type="time" class="form-control" asp-for="HoraFinTurno" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Observaciones</label>
+                            <input class="form-control" asp-for="ObservacionesTurno"
+                                   placeholder="Ej: Cupo 20 personas, traer DNI" />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Guardar cronograma</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Cronogramas vigentes</div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0 small">
+                    <thead>
+                        <tr>
+                            <th>Especialista</th>
+                            <th>Período</th>
+                            <th>Turnos</th>
+                            <th>Tipo turno</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Model.Cronogramas)
+                        {
+                            var diasRestantes = (c.FechaFin - DateTime.Today).Days;
+                            <tr class="@(diasRestantes <= 7 ? "table-warning" : "")">
+                                <td>
+                                    @c.NombreEspecialista
+                                    <br /><span class="text-muted">@c.Especialidad</span>
+                                </td>
+                                <td>
+                                    @c.FechaInicio.ToString("dd/MM") al @c.FechaFin.ToString("dd/MM/yyyy")
+                                    <br />
+                                    @if (diasRestantes <= 7)
+                                    {
+                                        <span class="badge bg-warning text-dark">Vence en @diasRestantes días</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">@diasRestantes días restantes</span>
+                                    }
+                                </td>
+                                <td>@c.TurnosDisponibles</td>
+                                <td>
+                                    @if (c.TipoTurno == "turno_previo")
+                                    {
+                                        <span class="badge bg-info text-dark">Turno previo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Orden llegada</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function actualizarFechaFin() {
+            var fechaStr = document.getElementById('fechaInicio').value;
+            var tipo = document.getElementById('tipoPeriodo').value;
+            if (!fechaStr) return;
+
+            var fecha = new Date(fechaStr);
+            var meses = tipo === 'bimestral' ? 2 : 1;
+
+            // Sumar meses y restar 1 día
+            fecha.setMonth(fecha.getMonth() + meses);
+            fecha.setDate(fecha.getDate() - 1);
+
+            var dia = String(fecha.getDate()).padStart(2, '0');
+            var mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            var anio = fecha.getFullYear();
+
+            document.getElementById('fechaFinMostrar').value = dia + '/' + mes + '/' + anio;
+        }
+
+        function mostrarBloqueturno() {
+            // El bloque de turnos siempre visible — útil para orden de llegada también
+        }
+
+        function mostrarDiaTurno() {
+            var mismoDia = document.getElementById('turnoMismoDia').checked;
+            document.getElementById('diaTurnoContainer').style.display = mismoDia ? 'none' : 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            actualizarFechaFin();
+            mostrarDiaTurno();
+        });
+    </script>
+}

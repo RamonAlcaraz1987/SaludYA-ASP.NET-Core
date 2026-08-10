@@ -1,0 +1,134 @@
+@page
+@model SaludYa.Pages.Vacunas.IndexModel
+@{
+    ViewData["Title"] = "Stock de vacunas";
+}
+
+<h2 class="mb-4">💉 Stock de vacunas — Vacunatorio</h2>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+@if (Model.Vacunatorio == null)
+{
+    <div class="alert alert-warning">
+        Tu centro todavía no tiene un vacunatorio configurado. Pedile al superadministrador que lo cree.
+    </div>
+}
+else
+{
+    <p class="text-muted">
+        Horario del vacunatorio: @(Model.Vacunatorio.HoraApertura.ToString("hh\\:mm")) - @(Model.Vacunatorio.HoraCierre.ToString("hh\\:mm"))
+        — Días: @Model.Vacunatorio.DiasAtencion.Replace(",", ", ")
+        <button type="button" class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#modalEditarHorario">
+            Editar horario
+        </button>
+    </p>
+
+    <form method="post">
+                    @Html.AntiForgeryToken()
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th>Vacuna</th>
+                            <th>Tipo</th>
+                            <th>Franja etaria</th>
+                            <th class="text-center">Disponible</th>
+                            <th>Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.Vacunas.Count; i++)
+                        {
+                            var v = Model.Vacunas[i];
+                            <tr>
+                                <td>
+                                    @v.NombreVacuna
+                                    <input type="hidden" name="CatalogoVacunaId_@i" value="@v.CatalogoVacunaId" />
+                                </td>
+                                <td class="small">
+                                    @(v.TipoVacuna == "calendario_fijo" ? "Calendario oficial" : "Campaña estacional")
+                                </td>
+                                <td class="small">@v.FranjaEtaria</td>
+                                <td class="text-center">
+                                    <input class="form-check-input" type="checkbox"
+                                           name="Disponible_@i"
+                                           value="true"
+                                           checked="@(v.Disponible ? "checked" : null)" />
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm"
+                                           name="Observaciones_@i"
+                                           value="@v.Observaciones"
+                                           placeholder="Ej: stock agotado hasta el viernes" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <input type="hidden" asp-for="CantidadVacunas" />
+        <button type="submit" class="btn btn-primary mt-3">Guardar disponibilidad</button>
+    </form>
+
+    <!-- Modal Editar Horario Vacunatorio -->
+    <div class="modal fade" id="modalEditarHorario" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="EditarHorario">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header">
+                        <h5 class="modal-title">Editar horario del vacunatorio</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Apertura</label>
+                                <input type="time" class="form-control" name="HoraAperturaEditar"
+                                       value="@Model.Vacunatorio.HoraApertura.ToString("hh\\:mm")" required />
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Cierre</label>
+                                <input type="time" class="form-control" name="HoraCierreEditar"
+                                       value="@Model.Vacunatorio.HoraCierre.ToString("hh\\:mm")" required />
+                            </div>
+                        </div>
+                        <label class="form-label">Días de atención</label>
+                        @{
+                            var diasActuales = Model.Vacunatorio.DiasAtencion.Split(',');
+                            var dias = new[] {
+                                ("lunes", "Lunes"), ("martes", "Martes"), ("miercoles", "Miércoles"),
+                                ("jueves", "Jueves"), ("viernes", "Viernes"), ("sabado", "Sábado")
+                            };
+                        }
+                        <div class="d-flex flex-wrap gap-3 mb-2">
+                            @foreach (var (valor, etiqueta) in dias)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="DiasEditar" value="@valor"
+                                           id="diaEditar_@valor" checked="@(diasActuales.Contains(valor) ? "checked" : null)" />
+                                    <label class="form-check-label" for="diaEditar_@valor">@etiqueta</label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar horario</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

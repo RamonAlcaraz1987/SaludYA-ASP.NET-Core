@@ -1,0 +1,170 @@
+@page "{id:int}"
+@model SaludYa.Pages.Public.CentroModel
+@{
+    ViewData["Title"] = Model.Centro?.Nombre ?? "Centro";
+    Layout = "_LayoutPublico";
+}
+
+@if (Model.Centro == null)
+{
+    <div class="alert alert-danger">Centro no encontrado.</div>
+}
+else
+{
+    <!-- Info del centro -->
+    <div class="d-flex align-items-start justify-content-between mb-2">
+        <div>
+            <h2 class="mb-0">🏥 @Model.Centro.Nombre</h2>
+            <p class="text-muted mb-0">📍 @Model.Centro.Direccion</p>
+            @if (!string.IsNullOrEmpty(Model.Centro.Telefono))
+            {
+                <p class="text-muted small mb-0">📞 @Model.Centro.Telefono</p>
+            }
+        </div>
+        <a href="https://www.google.com/maps/search/?api=1&query=@Uri.EscapeDataString(Model.Centro.Direccion + ", San Luis, Argentina")"
+           target="_blank" class="btn btn-outline-success btn-sm">
+            🗺 Ver en Maps
+        </a>
+    </div>
+
+    <!-- Novedades del día -->
+    @if (Model.Novedades.Count > 0)
+    {
+        <div class="alert alert-warning mt-3">
+            <strong>⚠ Novedades de hoy</strong>
+            <ul class="mb-0 mt-2">
+                @foreach (var n in Model.Novedades)
+                {
+                    <li>
+                        <strong>@n.NombreEspecialista</strong> (@n.Especialidad) —
+                        @switch (n.TipoNovedad)
+                        {
+                            case "ausencia": <text>No atiende hoy</text> break;
+                            case "cambio_horario": <text>Cambio de horario</text> break;
+                            case "reduccion_turnos": <text>Turnos reducidos</text> break;
+                            default: <text>@n.TipoNovedad</text> break;
+                        }
+                        @if (n.HoraNuevaInicio.HasValue && n.HoraNuevaFin.HasValue)
+                        {
+                            <text> — Nuevo horario: @(n.HoraNuevaInicio.Value.ToString().Substring(0,5)) a @(n.HoraNuevaFin.Value.ToString().Substring(0,5))</text>
+                        }
+                        @if (!string.IsNullOrEmpty(n.Descripcion))
+                        {
+                            <text>: @n.Descripcion</text>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
+    <hr />
+
+    <!-- Especialistas y cronograma -->
+    <h4 class="mb-3">👨‍⚕️ Especialistas y horarios</h4>
+
+    @if (!Model.Cronogramas.Any())
+    {
+        <p class="text-muted">Sin cronograma cargado para este período.</p>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var c in Model.Cronogramas)
+            {
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="card-title mb-1">@c.NombreEspecialista</h6>
+                            <p class="text-muted small mb-2">@c.Especialidad</p>
+
+                            @if (c.Horarios != null && c.Horarios.Count > 0)
+                            {
+                                <p class="mb-1 small"><strong>🗓 Atención:</strong></p>
+                                <ul class="mb-2 small ps-3">
+                                    @foreach (var h in c.Horarios)
+                                    {
+                                        <li>
+                                            @System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(h.DiaSemana):
+                                            @h.HoraInicio.ToString().Substring(0,5) a @h.HoraFin.ToString().Substring(0,5)
+                                        </li>
+                                    }
+                                </ul>
+                            }
+
+                            @if (c.TipoTurno == "turno_previo" && c.HorarioTurnos != null)
+                            {
+                                <p class="mb-1 small">
+                                    <strong>📋 Turnos:</strong>
+                                    @if (c.HorarioTurnos.MismoDia)
+                                    {
+                                        <text>El mismo día de atención</text>
+                                    }
+                                    else
+                                    {
+                                        <text>Los @System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(c.HorarioTurnos.DiaSemana ?? "")</text>
+                                    }
+                                    de @c.HorarioTurnos.HoraInicio.ToString().Substring(0,5)
+                                    a @c.HorarioTurnos.HoraFin.ToString().Substring(0,5)
+                                </p>
+                                @if (!string.IsNullOrEmpty(c.HorarioTurnos.Observaciones))
+                                {
+                                    <p class="small text-muted mb-0">⚠ @c.HorarioTurnos.Observaciones</p>
+                                }
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary small">🚶 Por orden de llegada</span>
+                            }
+
+                            <p class="small text-primary mt-2 mb-0">
+                                Turnos disponibles: <strong>@c.TurnosDisponibles</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Vacunatorio -->
+    @if (Model.Vacunatorio != null)
+    {
+        <hr />
+        <h4 class="mb-2">💉 Vacunatorio</h4>
+        <p class="text-muted small mb-3">
+            Horario: @Model.Vacunatorio.HoraApertura.ToString().Substring(0,5) a @Model.Vacunatorio.HoraCierre.ToString().Substring(0,5)
+            — Días: @Model.Vacunatorio.DiasAtencion.Replace(",", ", ")
+        </p>
+
+        <div class="row g-2">
+            @foreach (var v in Model.Vacunas)
+            {
+                <div class="col-md-4">
+                    <div class="card @(v.Disponible ? "border-success" : "border-secondary") h-100">
+                        <div class="card-body py-2 px-3">
+                            <p class="mb-0 fw-bold small">@v.NombreVacuna</p>
+                            <p class="mb-0 text-muted small">@v.FranjaEtaria</p>
+                            @if (v.Disponible)
+                            {
+                                <span class="badge bg-success mt-1">✓ Disponible</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary mt-1">✗ No disponible</span>
+                            }
+                            @if (!string.IsNullOrEmpty(v.Observaciones))
+                            {
+                                <p class="small text-danger mt-1 mb-0">@v.Observaciones</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="mt-4">
+        <a href="/Public/Index" class="btn btn-outline-secondary btn-sm">← Volver a centros</a>
+    </div>
+}

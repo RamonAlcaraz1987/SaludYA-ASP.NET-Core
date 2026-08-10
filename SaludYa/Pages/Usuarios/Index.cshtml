@@ -1,0 +1,244 @@
+@page
+@model SaludYa.Pages.Usuarios.IndexModel
+@{
+    ViewData["Title"] = "Usuarios";
+}
+
+<h2 class="mb-4">👤 Usuarios institucionales</h2>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card mb-4">
+            <div class="card-header">Nuevo usuario</div>
+            <div class="card-body">
+                <form method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input class="form-control" asp-for="Nombre" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" asp-for="Email" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" asp-for="Clave" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rol</label>
+                        <select class="form-select" asp-for="Rol">
+                            <option value="responsable">Responsable de centro</option>
+                            <option value="superadmin">Superadministrador</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Centro asignado</label>
+                        <select class="form-select" asp-for="CentroId">
+                            <option value="">— Ninguno (solo superadmin) —</option>
+                            @foreach (var c in Model.Centros)
+                            {
+                                <option value="@c.Id">@c.Nombre</option>
+                            }
+                        </select>
+                        <div class="form-text">Requerido si el rol es "Responsable de centro"</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Crear usuario</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="col-md-7">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <button type="button" id="toggleInactivosUsuarios" class="btn btn-sm">👁 Mostrar desactivados</button>
+        </div>
+        <div class="mb-3">
+            <input type="text" class="form-control" id="buscarUsuario" placeholder="🔍 Buscar por nombre, email o centro...">
+        </div>
+
+        @{
+            var gruposUsuarios = Model.Usuarios
+                .GroupBy(u => u.CentroId)
+                .OrderBy(g => g.Key == null ? -1 : g.Key);
+        }
+
+        @foreach (var grupo in gruposUsuarios)
+        {
+            var nombreCentro = grupo.Key == null
+                ? "Sin centro / Superadmin"
+                : (Model.Centros.FirstOrDefault(c => c.Id == grupo.Key)?.Nombre ?? "—");
+            var collapseId = $"colapso-usu-{(grupo.Key?.ToString() ?? "none")}";
+
+            <div class="card mb-3 grupo-centro" data-buscar="@nombreCentro">
+                <div class="card-header fw-bold" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#@collapseId">
+                    👤 @nombreCentro <span class="text-muted small">(@grupo.Count())</span>
+                </div>
+                <div class="collapse" id="@collapseId">
+                    <table class="table table-striped mb-0 align-middle">
+                        <thead>
+                            <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Activo</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in grupo)
+                            {
+                                <tr class="fila-item @(u.Activo ? "" : "text-muted es-inactivo")" data-buscar="@u.Nombre @u.Email">
+                                    <td>@u.Nombre</td>
+                                    <td>@u.Email</td>
+                                    <td><span class="badge bg-secondary">@u.Rol</span></td>
+                                    <td>
+                                        @if (u.Activo)
+                                        {
+                                            <span class="badge bg-success">Sí</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">No</span>
+                                        }
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                                data-bs-toggle="modal" data-bs-target="#modalEditarUsuario"
+                                                data-id="@u.Id" data-nombre="@u.Nombre" data-email="@u.Email"
+                                                data-rol="@u.Rol" data-centroid="@u.CentroId">
+                                            Editar
+                                        </button>
+                                        <form method="post" asp-page-handler="CambiarEstado" class="d-inline form-confirmar"
+                                              data-titulo="@(u.Activo ? "Desactivar usuario" : "Activar usuario")"
+                                              data-mensaje="@(u.Activo
+                                                  ? $"¿Confirmás que querés desactivar a <strong>{u.Nombre}</strong>? No va a poder iniciar sesión."
+                                                  : $"¿Confirmás que querés activar a <strong>{u.Nombre}</strong>?")"
+                                              data-boton="@(u.Activo ? "Desactivar" : "Activar")"
+                                              data-clase-boton="@(u.Activo ? "btn-danger" : "btn-success")">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@u.Id" />
+                                            @if (u.Activo)
+                                            {
+                                                <input type="hidden" name="activo" value="false" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Desactivar</button>
+                                            }
+                                            else
+                                            {
+                                                <input type="hidden" name="activo" value="true" />
+                                                <button type="submit" class="btn btn-sm btn-outline-success">Activar</button>
+                                            }
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal Editar Usuario -->
+<div class="modal fade" id="modalEditarUsuario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Editar">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="EditarId" id="euId" />
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input class="form-control" name="EditarNombre" id="euNombre" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="EditarEmail" id="euEmail" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rol</label>
+                        <select class="form-select" name="EditarRol" id="euRol" onchange="mostrarCentroEditar()">
+                            <option value="responsable">Responsable de centro</option>
+                            <option value="superadmin">Superadministrador</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="euCentroContainer">
+                        <label class="form-label">Centro asignado</label>
+                        <select class="form-select" name="EditarCentroId" id="euCentroId">
+                            <option value="">— Ninguno —</option>
+                            @foreach (var c in Model.Centros)
+                            {
+                                <option value="@c.Id">@c.Nombre</option>
+                            }
+                        </select>
+                    </div>
+
+                    <hr />
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="EditarCambiarPassword"
+                               value="true" id="euCambiarPassword" onchange="toggleCampoPassword()" />
+                        <label class="form-check-label" for="euCambiarPassword">
+                            Cambiar contraseña
+                        </label>
+                    </div>
+
+                    <div class="mb-3" id="euPasswordContainer" style="display:none">
+                        <label class="form-label">Nueva contraseña</label>
+                        <input type="password" class="form-control" name="EditarClave" id="euClave"
+                               placeholder="Mínimo 6 caracteres" minlength="6" />
+                        <div class="form-text">Si no marcás la casilla de arriba, la contraseña actual no cambia.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function mostrarCentroEditar() {
+            var rol = document.getElementById('euRol').value;
+            document.getElementById('euCentroContainer').style.display = rol === 'responsable' ? 'block' : 'none';
+        }
+
+        function toggleCampoPassword() {
+            var marcado = document.getElementById('euCambiarPassword').checked;
+            var container = document.getElementById('euPasswordContainer');
+            container.style.display = marcado ? 'block' : 'none';
+            if (!marcado) {
+                document.getElementById('euClave').value = '';
+            }
+        }
+
+        document.getElementById('modalEditarUsuario').addEventListener('show.bs.modal', function (event) {
+            var btn = event.relatedTarget;
+            document.getElementById('euId').value = btn.getAttribute('data-id');
+            document.getElementById('euNombre').value = btn.getAttribute('data-nombre');
+            document.getElementById('euEmail').value = btn.getAttribute('data-email');
+            document.getElementById('euRol').value = btn.getAttribute('data-rol');
+            document.getElementById('euCentroId').value = btn.getAttribute('data-centroid') || '';
+            mostrarCentroEditar();
+
+            // Reset del bloque de contraseña cada vez que se abre el modal
+            document.getElementById('euCambiarPassword').checked = false;
+            toggleCampoPassword();
+        });
+
+        habilitarBusquedaConCajones('buscarUsuario', '.grupo-centro', '.fila-item');
+        habilitarToggleInactivos('toggleInactivosUsuarios', '.es-inactivo');
+    </script>
+}

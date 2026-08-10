@@ -1,0 +1,181 @@
+@page
+@model SaludYa.Pages.CatalogoVacunas.IndexModel
+@{
+    ViewData["Title"] = "Catálogo de vacunas";
+}
+
+<h2 class="mb-4">💉 Catálogo de vacunas</h2>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-success">@TempData["Mensaje"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card mb-4">
+            <div class="card-header">Nueva vacuna</div>
+            <div class="card-body">
+                <form method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input class="form-control" asp-for="Nombre" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" asp-for="Tipo">
+                            <option value="calendario_fijo">Calendario oficial</option>
+                            <option value="campana_estacional">Campaña estacional</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Franja etaria</label>
+                        <input class="form-control" asp-for="FranjaEtaria" placeholder="Ej: 0-6 meses, adultos" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Condición de aplicación</label>
+                        <input class="form-control" asp-for="CondicionAplicacion" placeholder="Ej: Dosis única al nacer" />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Agregar vacuna</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <button type="button" id="toggleInactivosVacunas" class="btn btn-sm">👁 Mostrar desactivados</button>
+        </div>
+        <div class="mb-3">
+            <input type="text" class="form-control" id="buscarVacuna" placeholder="🔍 Buscar vacuna por nombre...">
+        </div>
+
+        @foreach (var grupoTipo in Model.Vacunas.GroupBy(v => v.Tipo))
+        {
+            var etiquetaTipo = grupoTipo.Key == "calendario_fijo" ? "Calendario oficial" : "Campaña estacional";
+            var collapseId = $"colapso-vac-{grupoTipo.Key}";
+
+            <div class="card mb-3 grupo-centro" data-buscar="@etiquetaTipo">
+                <div class="card-header fw-bold" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#@collapseId">
+                    💉 @etiquetaTipo <span class="text-muted small">(@grupoTipo.Count())</span>
+                </div>
+                <div class="collapse show" id="@collapseId">
+                    <table class="table table-striped mb-0 align-middle small">
+                        <thead>
+                            <tr><th>Nombre</th><th>Franja etaria</th><th>Estado</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var v in grupoTipo)
+                            {
+                                <tr class="fila-item @(v.Activo ? "" : "text-muted es-inactivo")" data-buscar="@v.Nombre">
+                                    <td>@v.Nombre</td>
+                                    <td>@v.FranjaEtaria</td>
+                                    <td>
+                                        @if (v.Activo)
+                                        {
+                                            <span class="badge bg-success">Activa</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Inactiva</span>
+                                        }
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                                data-bs-toggle="modal" data-bs-target="#modalEditarVacuna"
+                                                data-id="@v.Id" data-nombre="@v.Nombre" data-tipo="@v.Tipo"
+                                                data-franja="@v.FranjaEtaria" data-condicion="@v.CondicionAplicacion">
+                                            Editar
+                                        </button>
+                                        <form method="post" asp-page-handler="CambiarEstado" class="d-inline form-confirmar"
+                                              data-titulo="@(v.Activo ? "Desactivar vacuna" : "Activar vacuna")"
+                                              data-mensaje="@(v.Activo
+                                                  ? $"¿Confirmás que querés desactivar <strong>{v.Nombre}</strong> del catálogo?"
+                                                  : $"¿Confirmás que querés activar <strong>{v.Nombre}</strong>?")"
+                                              data-boton="@(v.Activo ? "Desactivar" : "Activar")"
+                                              data-clase-boton="@(v.Activo ? "btn-danger" : "btn-success")">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@v.Id" />
+                                            @if (v.Activo)
+                                            {
+                                                <input type="hidden" name="activo" value="false" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Desactivar</button>
+                                            }
+                                            else
+                                            {
+                                                <input type="hidden" name="activo" value="true" />
+                                                <button type="submit" class="btn btn-sm btn-outline-success">Activar</button>
+                                            }
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal Editar Vacuna -->
+<div class="modal fade" id="modalEditarVacuna" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Editar">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar vacuna</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="EditarId" id="evId" />
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input class="form-control" name="EditarNombre" id="evNombre" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" name="EditarTipo" id="evTipo">
+                            <option value="calendario_fijo">Calendario oficial</option>
+                            <option value="campana_estacional">Campaña estacional</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Franja etaria</label>
+                        <input class="form-control" name="EditarFranjaEtaria" id="evFranja" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Condición de aplicación</label>
+                        <input class="form-control" name="EditarCondicionAplicacion" id="evCondicion" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('modalEditarVacuna').addEventListener('show.bs.modal', function (event) {
+            var btn = event.relatedTarget;
+            document.getElementById('evId').value = btn.getAttribute('data-id');
+            document.getElementById('evNombre').value = btn.getAttribute('data-nombre');
+            document.getElementById('evTipo').value = btn.getAttribute('data-tipo');
+            document.getElementById('evFranja').value = btn.getAttribute('data-franja') || '';
+            document.getElementById('evCondicion').value = btn.getAttribute('data-condicion') || '';
+        });
+
+        habilitarBusquedaConCajones('buscarVacuna', '.grupo-centro', '.fila-item');
+        habilitarToggleInactivos('toggleInactivosVacunas', '.es-inactivo');
+    </script>
+}
