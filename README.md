@@ -101,8 +101,8 @@ Las credenciales sensibles (`Salt` para el hash de contraseñas y `SecretKey` pa
 
 Funcionalidades core implementadas: sitio público, panel con dos roles, gestión de especialistas/centros/vacunas, auditoría, API con JWT y manejo seguro de secretos. Próximas mejoras sugeridas:
 - [ ] Agregar tests automatizados
-- [ ] Documentar variables de entorno para despliegue en producción
-- [ ] Agregar datos de ejemplo (seed) al script SQL para que la app no arranque vacía
+
+
 
 ## 📱 Proyecto relacionado
 
