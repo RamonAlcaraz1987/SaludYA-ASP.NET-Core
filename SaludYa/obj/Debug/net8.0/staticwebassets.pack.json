@@ -1,0 +1,29 @@
+{
+  "Files": [
+    {
+      "Id": "C:\\xampp1\\SaludYA-ASP.NET-Core\\SaludYa\\wwwroot\\css\\site.css",
+      "PackagePath": "staticwebassets\\css\\site.css"
+    },
+    {
+      "Id": "C:\\xampp1\\SaludYA-ASP.NET-Core\\SaludYa\\wwwroot\\js\\site.js",
+      "PackagePath": "staticwebassets\\js\\site.js"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.SaludYa.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.build.SaludYa.props",
+      "PackagePath": "build\\SaludYa.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.buildMultiTargeting.SaludYa.props",
+      "PackagePath": "buildMultiTargeting\\SaludYa.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.buildTransitive.SaludYa.props",
+      "PackagePath": "buildTransitive\\SaludYa.props"
+    }
+  ],
+  "ElementsToRemove": []
+}
